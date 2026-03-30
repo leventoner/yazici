@@ -47,11 +47,16 @@ if os.path.exists(external_env):
 
 # Settings logic
 DEFAULT_SETTINGS = {
+    "program_name": "Yazıcı",
     "hotkey": "ctrl+c",
     "stt_hotkey": "ctrl+shift+y",
     "stt_duration": 10,
     "cooldown": 0.5,
-    "notify_on_no_change": True
+    "notify_on_no_change": True,
+    "enable_character_fix": True,
+    "enable_ai_improve": True,
+    "enable_speech_to_text": True,
+    "color_theme": "#1a237e" # Lacivert
 }
 
 def load_settings():
@@ -71,6 +76,8 @@ def load_settings():
     return DEFAULT_SETTINGS
 
 settings = load_settings()
+THEME_COLOR = settings.get("color_theme", "#1a237e")
+PROGRAM_NAME = settings.get("program_name", "Yazıcı")
 
 # Global variables
 click_count = 0
@@ -166,7 +173,8 @@ class NotificationOverlay:
         overlay.after(4000, root.destroy)
         root.mainloop()
 
-def show_notification(title, message, color='#3498db'):
+def show_notification(title, message, color=None):
+    if color is None: color = THEME_COLOR
     NotificationOverlay(title, message, color)
 
 def check_lib_health():
@@ -320,6 +328,10 @@ def handle_improve_clipboard(auto_detect=False):
 
 def handle_speech_to_text():
     """Records audio using sounddevice and types it as Turkish text."""
+    if not settings.get("enable_speech_to_text", True):
+        show_notification("Uyarı", "Sesle yazma özelliği kapalı.", color='#e74c3c')
+        return
+
     r = sr.Recognizer()
     
     # Recording settings
@@ -369,11 +381,20 @@ def process_action():
     time.sleep(0.3)
     
     if current_clicks == 2:
-        handle_fix_clipboard()
+        if settings.get("enable_character_fix", True):
+            handle_fix_clipboard()
+        else:
+            show_notification("Uyarı", "Karakter düzeltme özelliği kapalı.", color='#e74c3c')
     elif current_clicks == 3:
-        handle_improve_clipboard(auto_detect=False)
+        if settings.get("enable_ai_improve", True):
+            handle_improve_clipboard(auto_detect=False)
+        else:
+            show_notification("Uyarı", "Yapay zeka iyileştirme özelliği kapalı.", color='#e74c3c')
     elif current_clicks >= 4:
-        handle_improve_clipboard(auto_detect=True)
+        if settings.get("enable_ai_improve", True):
+            handle_improve_clipboard(auto_detect=True)
+        else:
+            show_notification("Uyarı", "Yapay zeka iyileştirme özelliği kapalı.", color='#e74c3c')
 
 def on_hotkey_pressed():
     global click_count, timer, last_click_time
@@ -396,25 +417,49 @@ def quit_app(icon, item):
     icon.stop()
     os._exit(0)
 
-def setup_tray():
-    image = Image.open(resource_path("icon.png"))
-    menu = pystray.Menu(
-        pystray.MenuItem("İmla Düzeltici Durumu", lambda: None, enabled=False),
+def get_check_status(feature_name):
+    return "✓ " if settings.get(feature_name, True) else "  "
+
+def toggle_feature(icon, item):
+    feature_map = {
+        "Karakter Düzeltme (2x)": "enable_character_fix",
+        "Yapay Zeka (AI) Desteği": "enable_ai_improve",
+        "Sesle Yazma (STT)": "enable_speech_to_text"
+    }
+    key = feature_map.get(item.text.replace("✓ ", "").replace("  ", ""))
+    if key:
+        settings[key] = not settings[key]
+        # Update settings.json so it persists
+        try:
+            settings_path = get_external_path("settings.json")
+            with open(settings_path, "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=4, ensure_ascii=False)
+        except:
+            pass
+        # Refresh menu
+        icon.menu = create_menu()
+
+def create_menu():
+    return pystray.Menu(
+        pystray.MenuItem(f"{PROGRAM_NAME} v3.0", lambda: None, enabled=False),
         pystray.MenuItem("---", lambda: None, enabled=False),
-        pystray.MenuItem("Panoyu Düzelt (Karakter)", handle_fix_clipboard),
-        pystray.MenuItem("Panoyu İyileştir (Türkçe)", lambda: handle_improve_clipboard(auto_detect=False)),
-        pystray.MenuItem("Panoyu İyileştir (Kendi Dili)", lambda: handle_improve_clipboard(auto_detect=True)),
-        pystray.MenuItem("Sesle Yaz (Türkçe)", lambda: threading.Thread(target=handle_speech_to_text, daemon=True).start()),
+        pystray.MenuItem(f"{get_check_status('enable_character_fix')}Karakter Düzeltme (2x)", toggle_feature),
+        pystray.MenuItem(f"{get_check_status('enable_ai_improve')}Yapay Zeka (AI) Desteği", toggle_feature),
+        pystray.MenuItem(f"{get_check_status('enable_speech_to_text')}Sesle Yazma (STT)", toggle_feature),
         pystray.MenuItem("---", lambda: None, enabled=False),
-        pystray.MenuItem(f"Kısayol: {settings['hotkey'].upper()}", lambda: None, enabled=False),
-        pystray.MenuItem(f"  2x {settings['hotkey'].upper()}: Karakter", lambda: None, enabled=False),
-        pystray.MenuItem(f"  3x {settings['hotkey'].upper()}: Türkçe İyileştir", lambda: None, enabled=False),
-        pystray.MenuItem(f"  4x {settings['hotkey'].upper()}: Dilde İyileştir", lambda: None, enabled=False),
+        pystray.MenuItem("Panoyu Düzelt", handle_fix_clipboard),
+        pystray.MenuItem("Pusula (Sesle Yaz)", lambda: threading.Thread(target=handle_speech_to_text, daemon=True).start()),
+        pystray.MenuItem("---", lambda: None, enabled=False),
+        pystray.MenuItem(f"Kısayollar:", lambda: None, enabled=False),
+        pystray.MenuItem(f"  {settings['hotkey'].upper()}: Karakter/AI", lambda: None, enabled=False),
         pystray.MenuItem(f"  {settings['stt_hotkey'].upper()}: Sesle Yaz", lambda: None, enabled=False),
         pystray.MenuItem("---", lambda: None, enabled=False),
         pystray.MenuItem("Çıkış", quit_app)
     )
-    icon = pystray.Icon("imla_duzeltici", image, "İmla Düzeltici & Yazı İyileştirici", menu)
+
+def setup_tray():
+    image = Image.open(resource_path("icon.png"))
+    icon = pystray.Icon("yazici", image, f"{PROGRAM_NAME} & Metin Asistanı", create_menu())
     icon.run()
 
 def start_listener():
@@ -441,12 +486,12 @@ if __name__ == "__main__":
     threading.Thread(target=start_listener, daemon=True).start()
 
     # Initial notification and library health check
-    msg = f"Uygulama hazır!\n2x {settings['hotkey'].upper()}: Karakter\n3x {settings['hotkey'].upper()}: Türkçe İyileştir\n4x {settings['hotkey'].upper()}: Kendi Dilinde\n{settings['stt_hotkey'].upper()}: Sesle Yaz"
+    msg = f"Yazıcı Hazır!\n2x {settings['hotkey'].upper()}: Karakter\n3x {settings['hotkey'].upper()}: İyileştir\n{settings['stt_hotkey'].upper()}: Sesle Yaz"
     if not check_lib_health():
         msg += "\n\n⚠️ KRİTİK: Dil kütüphanesi yüklenemedi!"
-        show_notification("İmla Düzeltici v2.5 - HATA", msg, color='#e67e22')
+        show_notification(f"{PROGRAM_NAME} - HATA", msg, color='#e67e22')
     else:
-        show_notification("İmla Düzeltici v2.5", msg)
+        show_notification(PROGRAM_NAME, msg)
 
     # Start tray
     setup_tray()
