@@ -1,5 +1,7 @@
 {
     "hotkey": "ctrl+c",
+    "stt_hotkey": "ctrl+shift+y",
+    "stt_duration": 10,
     "cooldown": 0.5,
     "notify_on_no_change": true
 }

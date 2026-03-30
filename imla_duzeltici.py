@@ -10,6 +10,11 @@ import pystray
 from PIL import Image
 import tkinter as tk
 from dotenv import load_dotenv
+import speech_recognition as sr
+import sounddevice as sd
+from scipy.io import wavfile
+import numpy as np
+import io
 
 # Helper functions for paths
 def resource_path(relative_path):
@@ -43,6 +48,8 @@ if os.path.exists(external_env):
 # Settings logic
 DEFAULT_SETTINGS = {
     "hotkey": "ctrl+c",
+    "stt_hotkey": "ctrl+shift+y",
+    "stt_duration": 10,
     "cooldown": 0.5,
     "notify_on_no_change": True
 }
@@ -311,6 +318,46 @@ def handle_improve_clipboard(auto_detect=False):
     else:
         show_notification("İşlem Başarısız", improved, color='#e74c3c')
 
+def handle_speech_to_text():
+    """Records audio using sounddevice and types it as Turkish text."""
+    r = sr.Recognizer()
+    
+    # Recording settings
+    fs = 16000  # Sample rate
+    duration = settings.get("stt_duration", 10)
+    
+    show_notification("Dinleniyor...", f"Lütfen Türkçe konuşun ({duration} saniye).", color='#9b59b6')
+    
+    try:
+        # Step 1: Record using sounddevice
+        # We record for 5 seconds (can be improved later with silence detection)
+        recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
+        sd.wait()  # Wait until recording is finished
+        
+        show_notification("İşleniyor...", "Sesiniz metne çevriliyor...", color='#e67e22')
+        
+        # Step 2: Convert to WAV in memory
+        buffer = io.BytesIO()
+        wavfile.write(buffer, fs, recording)
+        buffer.seek(0)
+        
+        # Step 3: Process with SpeechRecognition
+        with sr.AudioFile(buffer) as source:
+            audio_data = r.record(source)
+            
+            # Using Google Web Speech API (free and supports Turkish)
+            text = r.recognize_google(audio_data, language='tr-TR')
+            
+            if text:
+                time.sleep(0.5)
+                keyboard.write(text)
+                show_notification("Başarılı!", f"Yazıya Geçirildi: {text}", color='#2ecc71')
+            else:
+                show_notification("Uyarı", "Ses anlaşılamadı.", color='#f1c40f')
+                
+    except Exception as e:
+        show_notification("Hata", f"Ses Tanıma Hatası: {e}", color='#e74c3c')
+
 def process_action():
     global click_count
     current_clicks = click_count
@@ -357,11 +404,13 @@ def setup_tray():
         pystray.MenuItem("Panoyu Düzelt (Karakter)", handle_fix_clipboard),
         pystray.MenuItem("Panoyu İyileştir (Türkçe)", lambda: handle_improve_clipboard(auto_detect=False)),
         pystray.MenuItem("Panoyu İyileştir (Kendi Dili)", lambda: handle_improve_clipboard(auto_detect=True)),
+        pystray.MenuItem("Sesle Yaz (Türkçe)", lambda: threading.Thread(target=handle_speech_to_text, daemon=True).start()),
         pystray.MenuItem("---", lambda: None, enabled=False),
         pystray.MenuItem(f"Kısayol: {settings['hotkey'].upper()}", lambda: None, enabled=False),
         pystray.MenuItem(f"  2x {settings['hotkey'].upper()}: Karakter", lambda: None, enabled=False),
         pystray.MenuItem(f"  3x {settings['hotkey'].upper()}: Türkçe İyileştir", lambda: None, enabled=False),
         pystray.MenuItem(f"  4x {settings['hotkey'].upper()}: Dilde İyileştir", lambda: None, enabled=False),
+        pystray.MenuItem(f"  {settings['stt_hotkey'].upper()}: Sesle Yaz", lambda: None, enabled=False),
         pystray.MenuItem("---", lambda: None, enabled=False),
         pystray.MenuItem("Çıkış", quit_app)
     )
@@ -371,6 +420,8 @@ def setup_tray():
 def start_listener():
     try:
         keyboard.add_hotkey(settings['hotkey'], on_hotkey_pressed, suppress=False)
+        # Add the Speech-to-Text hotkey
+        keyboard.add_hotkey(settings['stt_hotkey'], lambda: threading.Thread(target=handle_speech_to_text, daemon=True).start(), suppress=False)
         while is_running:
             time.sleep(1)
     except Exception as e:
@@ -390,12 +441,12 @@ if __name__ == "__main__":
     threading.Thread(target=start_listener, daemon=True).start()
 
     # Initial notification and library health check
-    msg = f"Uygulama hazır!\n2x {settings['hotkey'].upper()}: Karakter\n3x {settings['hotkey'].upper()}: Türkçe İyileştir\n4x {settings['hotkey'].upper()}: Kendi Dilinde"
+    msg = f"Uygulama hazır!\n2x {settings['hotkey'].upper()}: Karakter\n3x {settings['hotkey'].upper()}: Türkçe İyileştir\n4x {settings['hotkey'].upper()}: Kendi Dilinde\n{settings['stt_hotkey'].upper()}: Sesle Yaz"
     if not check_lib_health():
         msg += "\n\n⚠️ KRİTİK: Dil kütüphanesi yüklenemedi!"
-        show_notification("İmla Düzeltici v2.2 - HATA", msg, color='#e67e22')
+        show_notification("İmla Düzeltici v2.5 - HATA", msg, color='#e67e22')
     else:
-        show_notification("İmla Düzeltici v2.2", msg)
+        show_notification("İmla Düzeltici v2.5", msg)
 
     # Start tray
     setup_tray()
