@@ -423,8 +423,8 @@ class SelectionManager:
             if dist > 15: # Significant movement
                 self.is_dragging = True
             
-            # 2. Trigger Conditions: Triple Click OR Drag ended
-            if self.click_count >= 3 or self.is_dragging:
+            # 2. Trigger Conditions: Double Click OR Drag ended
+            if self.click_count >= 2 or self.is_dragging:
                 # Give the application a moment to actually select the text
                 threading.Timer(0.1, self.check_and_show_menu, args=(x, y)).start()
 
