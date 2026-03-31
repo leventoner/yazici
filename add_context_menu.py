@@ -7,7 +7,7 @@ def add_context_menu():
     if getattr(sys, 'frozen', False):
         app_path = sys.executable
     else:
-        app_path = f'"{sys.executable}" "{os.path.abspath("imla_duzeltici.py")}"'
+        app_path = f'"{sys.executable}" "{os.path.abspath("yazici.py")}"'
 
     # Registry key paths
     # We add to HKEY_CLASSES_ROOT\* which applies to all files
@@ -15,18 +15,18 @@ def add_context_menu():
     
     try:
         # 1. Characters Fix
-        base_key = r"*\shell\ImlaDuzeltici_Fix"
+        base_key = r"*\shell\Yazici_Fix"
         with reg.CreateKey(reg.HKEY_CLASSES_ROOT, base_key) as key:
-            reg.SetValue(key, "", reg.REG_SZ, "İmla Düzeltici: Karakterleri Düzelt")
+            reg.SetValue(key, "", reg.REG_SZ, "Yazıcı: Karakterleri Düzelt")
             reg.SetValueEx(key, "Icon", 0, reg.REG_SZ, app_path.replace('"', ''))
         
         with reg.CreateKey(reg.HKEY_CLASSES_ROOT, base_key + r"\command") as key:
             reg.SetValue(key, "", reg.REG_SZ, f'{app_path} --fix')
 
         # 2. Text Improve
-        base_key = r"*\shell\ImlaDuzeltici_Improve"
+        base_key = r"*\shell\Yazici_Improve"
         with reg.CreateKey(reg.HKEY_CLASSES_ROOT, base_key) as key:
-            reg.SetValue(key, "", reg.REG_SZ, "İmla Düzeltici: Metni İyileştir")
+            reg.SetValue(key, "", reg.REG_SZ, "Yazıcı: Metni İyileştir")
             reg.SetValueEx(key, "Icon", 0, reg.REG_SZ, app_path.replace('"', ''))
         
         with reg.CreateKey(reg.HKEY_CLASSES_ROOT, base_key + r"\command") as key:

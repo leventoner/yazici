@@ -5,15 +5,10 @@ import threading
 import json
 import keyboard
 import pyperclip
-from mintlemon import Normalizer
 import pystray
 from PIL import Image
 import tkinter as tk
 from dotenv import load_dotenv
-import speech_recognition as sr
-import sounddevice as sd
-from scipy.io import wavfile
-import numpy as np
 import io
 from pynput import mouse
 from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu, show_notification, is_menu_active, _run_tk_loop, get_main_root
@@ -123,41 +118,8 @@ is_running = True
 processing_lock = threading.Lock()
 timer = None
 
-# Gemini configuration
-import google.generativeai as genai
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-def initialize_gemini():
-    if not GEMINI_API_KEY:
-        print("GEMINI_API_KEY not found in environment.")
-        return None
-    
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        available_names = []
-        try:
-            available_models = list(genai.list_models())
-            available_names = [m.name for m in available_models if 'generateContent' in m.supported_generation_methods]
-        except Exception as list_err:
-            print(f"Model listeleme hatası: {list_err}")
-
-        preferred_keywords = ['gemini-2.0-flash', 'gemini-2.1-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro']
-        for kw in preferred_keywords:
-            for full_name in available_names:
-                if kw in full_name:
-                    return genai.GenerativeModel(full_name)
-        
-        for fallback in ['gemini-1.5-flash', 'gemini-pro']:
-            try:
-                return genai.GenerativeModel(f"models/{fallback}")
-            except:
-                continue
-        return None
-    except Exception as e:
-        print(f"Gemini kritik hata: {e}")
-        return None
-
-model = initialize_gemini()
+# Gemini configuration will be initialized lazily to improve startup speed
+_gemini_configured = False
 
 # The resource_path and get_external_path functions are moved to the top
 
@@ -165,14 +127,18 @@ model = initialize_gemini()
 
 def check_lib_health():
     try:
+        # Lazy import to speed up startup
+        from mintlemon import Normalizer
         return Normalizer.deasciify("kiymetli") == "kıymetli"
-    except:
+    except Exception as e:
+        print(f"Lib health check failed: {e}")
         return False
 
 def deasciify_text(text):
     if not text:
         return text
     try:
+        from mintlemon import Normalizer
         # 1. Full text deasciify
         corrected = Normalizer.deasciify(text)
         
@@ -222,6 +188,16 @@ def deasciify_text(text):
         return text
 
 def improve_text(text, auto_detect=False):
+    global _gemini_configured
+    import google.generativeai as genai
+
+    if not _gemini_configured:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return "Hata: GEMINI_API_KEY bulunamadı. Lütfen .env dosyanızı kontrol edin."
+        genai.configure(api_key=api_key)
+        _gemini_configured = True
+
     try:
         available_models = list(genai.list_models())
         available_model_names = [m.name for m in available_models if 'generateContent' in m.supported_generation_methods]
@@ -318,25 +294,34 @@ def handle_speech_to_text():
         show_notification("Uyarı", "Sesle yazma özelliği kapalı.", color='#e74c3c')
         return
 
-    r = sr.Recognizer()
-    
-    # Recording settings
-    fs = 16000  # Sample rate
-    duration = settings.get("stt_duration", 10)
-    
-    show_notification("Dinleniyor...", f"Lütfen Türkçe konuşun ({duration} saniye).", color='#9b59b6')
-    
     try:
+        # Lazy load heavy audio modules only when needed
+        import speech_recognition as sr
+        import sounddevice as sd
+        import numpy as np
+        import wave
+
+        r = sr.Recognizer()
+        
+        # Recording settings
+        fs = 16000  # Sample rate
+        duration = settings.get("stt_duration", 10)
+        
+        show_notification("Dinleniyor...", f"Lütfen Türkçe konuşun ({duration} saniye).", color='#9b59b6')
+        
         # Step 1: Record using sounddevice
-        # We record for 5 seconds (can be improved later with silence detection)
         recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
         sd.wait()  # Wait until recording is finished
         
         show_notification("İşleniyor...", "Sesiniz metne çevriliyor...", color='#e67e22')
         
-        # Step 2: Convert to WAV in memory
+        # Step 2: Convert to WAV in memory using built-in wave module (removes scipy dependency)
         buffer = io.BytesIO()
-        wavfile.write(buffer, fs, recording)
+        with wave.open(buffer, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)  # 16-bit audio
+            wf.setframerate(fs)
+            wf.writeframes(recording.tobytes())
         buffer.seek(0)
         
         # Step 3: Process with SpeechRecognition

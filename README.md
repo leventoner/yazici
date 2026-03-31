@@ -36,13 +36,13 @@ Uygulama davranışını `settings.json` üzerinden özelleştirebilirsiniz:
 
 ### 3. Çalıştırma
 ```powershell
-python imla_duzeltici.py
+python yazici.py
 ```
 
 ### 4. EXE Olarak Paketleme (Build)
 Sanal ortam (venv) kullanıyorsanız şu komutla en sağlıklı EXE dosyasını oluşturabilirsiniz:
 ```powershell
-python -m PyInstaller --noconsole --onefile --add-data "icon.png;." --add-data ".env;." --add-data "settings.json;." --icon="icon.ico" --collect-all zeyrek --collect-all mintlemon --collect-all google.generativeai --collect-all scipy --collect-all sounddevice --collect-all speech_recognition --collect-all pynput --name "Yazici" imla_duzeltici.py
+python -m PyInstaller --noconsole --onefile --add-data "icon.png;." --add-data ".env;." --add-data "settings.json;." --icon="icon.ico" --collect-all zeyrek --collect-all mintlemon --collect-all google.generativeai --collect-all sounddevice --collect-all speech_recognition --collect-all pynput --name "Yazici" yazici.py
 ```
 
 ---
