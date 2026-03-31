@@ -15,6 +15,21 @@ import sounddevice as sd
 from scipy.io import wavfile
 import numpy as np
 import io
+from pynput import mouse
+from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu
+import subprocess
+
+# Fix DPI scaling on Windows
+if sys.platform == "win32":
+    try:
+        from ctypes import windll
+        windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        try:
+            windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
 
 # Helper functions for paths
 def resource_path(relative_path):
@@ -411,6 +426,97 @@ def on_hotkey_pressed():
     timer = threading.Timer(COOLDOWN, process_action)
     timer.start()
 
+# --- Selection Detection Logic (Floating Menu Trigger) ---
+
+class SelectionManager:
+    def __init__(self):
+        self.mouse_press_pos = (0, 0)
+        self.mouse_press_time = 0
+        self.last_up_time = 0
+        self.click_count = 0
+        self.is_dragging = False
+        self.menu_active = False
+
+    def on_click(self, x, y, button, pressed):
+        if not is_running: return
+        if button != mouse.Button.left: return
+
+        # If user clicks elsewhere (not on current menu), close it
+        if pressed and not is_click_on_menu(x, y):
+            close_active_menu()
+
+        current_time = time.time()
+
+        if pressed:
+            # Check if this is a double/triple click
+            if current_time - self.last_up_time < 0.4:
+                self.click_count += 1
+            else:
+                self.click_count = 1
+            
+            self.mouse_press_pos = (x, y)
+            self.mouse_press_time = current_time
+            self.is_dragging = False
+        else:
+            # Released
+            self.last_up_time = current_time
+            
+            # 1. Check for Drag Selection
+            dist = ((x - self.mouse_press_pos[0])**2 + (y - self.mouse_press_pos[1])**2)**0.5
+            if dist > 15: # Significant movement
+                self.is_dragging = True
+            
+            # 2. Trigger Conditions: Triple Click OR Drag ended
+            if self.click_count >= 3 or self.is_dragging:
+                # Give the application a moment to actually select the text
+                threading.Timer(0.1, self.check_and_show_menu, args=(x, y)).start()
+
+    def check_and_show_menu(self, x, y):
+        # We need to see if there is actually selected text.
+        # How? Simulate Ctrl+C and see if clipboard is not empty or changed.
+        
+        # Save old clipboard to be polite
+        try:
+            old_clip = pyperclip.paste()
+        except:
+            old_clip = ""
+
+        # Request Copy
+        keyboard.press_and_release('ctrl+c')
+        time.sleep(0.15) # Wait for OS
+
+        try:
+            current_clip = pyperclip.paste()
+        except:
+            current_clip = ""
+
+        # If selection happened, show menu
+        # (We assume if clipboard is NOT empty and potentially different, or just NOT empty)
+        # To avoid showing it on empty clicks, we check if current_clip has content.
+        if current_clip and current_clip.strip():
+            show_floating_menu(x, y, self.menu_callback, theme_color=THEME_COLOR)
+        else:
+            # Restore if it was just a random click that didn't select anything
+            # But wait, if text was already in clipboard from before, this might be tricky.
+            # Best way: Check if current_clip is different from old_clip?
+            # No, user might select the same text again.
+            # Usually, if Ctrl+C was sent and we have text, it's a good indicator.
+            pass
+
+    def menu_callback(self, action_type):
+        if action_type == "fix":
+            handle_fix_clipboard()
+        elif action_type == "improve_tr":
+            handle_improve_clipboard(auto_detect=False)
+        elif action_type == "improve_auto":
+            handle_improve_clipboard(auto_detect=True)
+
+selection_manager = SelectionManager()
+
+def start_mouse_listener():
+    with mouse.Listener(on_click=selection_manager.on_click) as listener:
+        listener.join()
+
 def quit_app(icon, item):
     global is_running
     is_running = False
@@ -482,8 +588,9 @@ if __name__ == "__main__":
             handle_improve_clipboard()
             sys.exit(0)
 
-    # Start keyboard listener
+    # Start listeners
     threading.Thread(target=start_listener, daemon=True).start()
+    threading.Thread(target=start_mouse_listener, daemon=True).start()
 
     # Initial notification and library health check
     msg = f"Yazıcı Hazır!\n2x {settings['hotkey'].upper()}: Karakter\n3x {settings['hotkey'].upper()}: İyileştir\n{settings['stt_hotkey'].upper()}: Sesle Yaz"

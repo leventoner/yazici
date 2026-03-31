@@ -11,6 +11,10 @@
 - **🖊️ Akıllı Düzeltme:** `mintlemon-turkish-nlp` ile kelime bağlamına göre en uygun Türkçe karakterleri seçer.
 - **🤖 Yapay Zeka Desteği:** Google Gemini Pro API kullanarak metinlerinizin akıcılığını ve dilbilgisini mükemmelleştirir.
 - **🎙️ Sesle Yaz (STT):** `sounddevice` ve `SpeechRecognition` altyapısıyla söylediklerinizi doğrudan imlecin olduğu yere yazar.
+- **✨ Metin Seçimi Menüsü:** 3 kez tıklayarak veya fare ile metin seçtiğinizde beliren akıllı menü.
+  - 🔠: Karakter Düzeltme
+  - 🇹🇷: Türkçe İyileştirme
+  - 🪄: Orijinal Dilde İyileştirme
 - **⌨️ Akıllı Kısayollar:**
   - **2x Ctrl+C:** Karakter düzeltme.
   - **3x Ctrl+C:** Yapay zeka ile Türkçe iyileştirme.
@@ -36,8 +40,9 @@ python imla_duzeltici.py
 ```
 
 ### 4. EXE Olarak Paketleme (Build)
+Sanal ortam (venv) kullanıyorsanız şu komutla en sağlıklı EXE dosyasını oluşturabilirsiniz:
 ```powershell
-pyinstaller --noconsole --onefile --add-data "icon.png;." --add-data ".env;." --add-data "settings.json;." --icon="icon.ico" --collect-all zeyrek --collect-all mintlemon --collect-all google.generativeai --collect-all scipy --collect-all sounddevice --collect-all speech_recognition --name "Yazici" imla_duzeltici.py
+python -m PyInstaller --noconsole --onefile --add-data "icon.png;." --add-data ".env;." --add-data "settings.json;." --icon="icon.ico" --collect-all zeyrek --collect-all mintlemon --collect-all google.generativeai --collect-all scipy --collect-all sounddevice --collect-all speech_recognition --collect-all pynput --name "Yazici" imla_duzeltici.py
 ```
 
 ---
