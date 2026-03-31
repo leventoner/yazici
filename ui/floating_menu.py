@@ -42,7 +42,7 @@ def _run_tk_loop():
     main_root.mainloop()
 
 class FloatingMenu:
-    def __init__(self, x, y, callback, theme_color='#1a237e'):
+    def __init__(self, x, y, callback, theme_color='#1a237e', duration=10.0):
         global active_menu, main_root
         
         # Always run on main thread
@@ -74,7 +74,7 @@ class FloatingMenu:
         self._create_button("🪄", "Orijinal Dilde İyileştir", "improve_auto", 2)
         
         # Timers
-        self.auto_close_timer = Timer(10.0, self.destroy)
+        self.auto_close_timer = Timer(float(duration), self.destroy)
         self.auto_close_timer.start()
         
         # Fade in
@@ -242,7 +242,7 @@ def is_click_on_menu(x, y):
     except:
         return False
 
-def show_floating_menu(x, y, callback, theme_color='#1a237e'):
+def show_floating_menu(x, y, callback, theme_color='#1a237e', duration=10.0):
     global active_menu
     _ensure_ui_running()
     
@@ -250,10 +250,11 @@ def show_floating_menu(x, y, callback, theme_color='#1a237e'):
         global active_menu
         if active_menu:
             active_menu.destroy()
-        active_menu = FloatingMenu(x, y, callback, theme_color)
+        active_menu = FloatingMenu(x, y, callback, theme_color, duration)
         
     main_root.after(1, _create_menu)
 
 def show_notification(title, message, color='#3498db'):
+    close_active_menu()
     _ensure_ui_running()
     main_root.after(1, lambda: NotificationOverlay(title, message, color))

@@ -71,7 +71,8 @@ DEFAULT_SETTINGS = {
     "enable_character_fix": True,
     "enable_ai_improve": True,
     "enable_speech_to_text": True,
-    "color_theme": "#1a237e" # Lacivert
+    "color_theme": "#1a237e",
+    "floating_menu_duration": 10
 }
 
 def load_settings():
@@ -364,7 +365,8 @@ def process_action():
 def on_hotkey_pressed():
     global click_count, timer, last_click_time
     if not is_running: return
-        
+    
+    close_active_menu()
     current_time = time.time()
     if current_time - last_click_time < COOLDOWN:
         click_count += 1
@@ -444,7 +446,8 @@ class SelectionManager:
         # (We assume if clipboard is NOT empty and potentially different, or just NOT empty)
         # To avoid showing it on empty clicks, we check if current_clip has content.
         if current_clip and current_clip.strip():
-            show_floating_menu(x, y, self.menu_callback, theme_color=THEME_COLOR)
+            duration = settings.get("floating_menu_duration", 10)
+            show_floating_menu(x, y, self.menu_callback, theme_color=THEME_COLOR, duration=duration)
         else:
             # Restore if it was just a random click that didn't select anything
             # But wait, if text was already in clipboard from before, this might be tricky.

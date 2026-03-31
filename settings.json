@@ -8,5 +8,6 @@
     "enable_character_fix": true,
     "enable_ai_improve": true,
     "enable_speech_to_text": true,
-    "color_theme": "#1a237e"
+    "color_theme": "#1a237e",
+    "floating_menu_duration": 10
 }
