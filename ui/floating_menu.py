@@ -74,7 +74,7 @@ class FloatingMenu:
         self._create_button("🪄", "Orijinal Dilde İyileştir", "improve_auto", 2)
         
         # Timers
-        self.auto_close_timer = Timer(float(duration), self.destroy)
+        self.auto_close_timer = Timer(float(duration), self._check_auto_close)
         self.auto_close_timer.start()
         
         # Fade in
@@ -158,6 +158,34 @@ class FloatingMenu:
                 self.menu.after(20, self._fade_in)
         except:
             pass
+
+    def _check_auto_close(self):
+        """Checks if the mouse is over the menu before closing. If over, delays closing."""
+        if not main_root or not self.menu:
+            return
+
+        def _perform_check():
+            try:
+                # Refresh geometry to get latest positions
+                self._update_geometry_cache()
+                
+                # Get current mouse position
+                x = self.menu.winfo_pointerx()
+                y = self.menu.winfo_pointery()
+                
+                if is_click_on_menu(x, y):
+                    # Mouse is over, wait another 2 seconds and check again
+                    self.auto_close_timer = Timer(2.0, self._check_auto_close)
+                    self.auto_close_timer.start()
+                else:
+                    # Mouse is not over, close the menu
+                    close_active_menu()
+            except Exception:
+                # Fallback to closing if anything goes wrong
+                close_active_menu()
+
+        # Execute check on the main UI thread
+        main_root.after(10, _perform_check)
 
     def _update_geometry_cache(self):
         try:
