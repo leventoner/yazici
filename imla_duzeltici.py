@@ -16,7 +16,7 @@ from scipy.io import wavfile
 import numpy as np
 import io
 from pynput import mouse
-from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu
+from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu, show_notification
 import subprocess
 
 # Fix DPI scaling on Windows
@@ -140,57 +140,7 @@ model = initialize_gemini()
 
 # The resource_path and get_external_path functions are moved to the top
 
-class NotificationOverlay:
-    def __init__(self, title, message, color='#3498db'):
-        self.title = title
-        self.message = message
-        self.color = color
-        threading.Thread(target=self._run, daemon=True).start()
-
-    def _run(self):
-        root = tk.Tk()
-        root.withdraw()
-        
-        overlay = tk.Toplevel(root)
-        overlay.overrideredirect(True)
-        overlay.attributes("-topmost", True)
-        overlay.attributes("-alpha", 0.0)
-        overlay.configure(bg='#2c3e50', highlightbackground=self.color, highlightthickness=2)
-        
-        frame = tk.Frame(overlay, bg='#2c3e50', padx=15, pady=10)
-        frame.pack()
-
-        tk.Label(frame, text=self.title, fg=self.color, bg='#2c3e50', font=('Segoe UI', 10, 'bold')).pack(anchor='w')
-
-        display_msg = self.message
-        if len(display_msg) > 120:
-            display_msg = display_msg[:117] + "..."
-            
-        tk.Label(frame, text=display_msg, fg='white', bg='#2c3e50', font=('Segoe UI', 9), wraplength=400, justify='left').pack(anchor='w', pady=(2, 0))
-
-        overlay.update_idletasks()
-        width = overlay.winfo_width()
-        height = overlay.winfo_height()
-        screen_width = overlay.winfo_screenwidth()
-        screen_height = overlay.winfo_screenheight()
-        
-        x = screen_width - width - 20
-        y = screen_height - height - 60
-        overlay.geometry(f"+{x}+{y}")
-
-        def fade_in():
-            alpha = overlay.attributes("-alpha")
-            if alpha < 0.95:
-                overlay.attributes("-alpha", alpha + 0.1)
-                overlay.after(30, fade_in)
-        
-        fade_in()
-        overlay.after(4000, root.destroy)
-        root.mainloop()
-
-def show_notification(title, message, color=None):
-    if color is None: color = THEME_COLOR
-    NotificationOverlay(title, message, color)
+# Notifications are now handled by ui.floating_menu.show_notification
 
 def check_lib_health():
     try:
