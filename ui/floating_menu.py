@@ -290,3 +290,7 @@ def show_notification(title, message, color='#3498db'):
     close_active_menu()
     _ensure_ui_running()
     main_root.after(1, lambda: NotificationOverlay(title, message, color))
+
+def get_main_root():
+    _ensure_ui_running()
+    return main_root

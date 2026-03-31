@@ -16,7 +16,8 @@ from scipy.io import wavfile
 import numpy as np
 import io
 from pynput import mouse
-from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu, show_notification, is_menu_active
+from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu, show_notification, is_menu_active, _run_tk_loop, get_main_root
+from ui.settings_ui import show_settings_window
 import subprocess
 
 # Fix DPI scaling on Windows
@@ -90,6 +91,25 @@ def load_settings():
     except Exception as e:
         print(f"Error loading settings: {e}")
     return DEFAULT_SETTINGS
+
+def save_settings(new_settings):
+    global settings, THEME_COLOR, PROGRAM_NAME, COOLDOWN
+    settings = new_settings
+    THEME_COLOR = settings.get("color_theme", "#1a237e")
+    PROGRAM_NAME = settings.get("program_name", "Yazıcı")
+    COOLDOWN = settings.get("cooldown", 0.5)
+    
+    try:
+        settings_path = get_external_path("settings.json")
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4, ensure_ascii=False)
+        
+        # Re-register hotkeys if changed
+        # This is a bit complex, for now let's just show a notification
+        show_notification("Ayarlar Kaydedildi", "Yeni ayarlar uygulandı. Bazı değişiklikler için yeniden başlatma gerekebilir.", color=THEME_COLOR)
+    except Exception as e:
+        print(f"Error saving settings: {e}")
+        show_notification("Hata", f"Ayarlar kaydedilemedi: {e}", color='#e74c3c')
 
 settings = load_settings()
 THEME_COLOR = settings.get("color_theme", "#1a237e")
@@ -503,6 +523,11 @@ def toggle_feature(icon, item):
         # Refresh menu
         icon.menu = create_menu()
 
+def handle_settings(icon, item):
+    root = get_main_root()
+    if root:
+        root.after(1, lambda: show_settings_window(root, settings, save_settings))
+
 def create_menu():
     return pystray.Menu(
         pystray.MenuItem(f"{PROGRAM_NAME} v3.0", lambda: None, enabled=False),
@@ -513,6 +538,8 @@ def create_menu():
         pystray.MenuItem("---", lambda: None, enabled=False),
         pystray.MenuItem("Panoyu Düzelt", handle_fix_clipboard),
         pystray.MenuItem("Pusula (Sesle Yaz)", lambda: threading.Thread(target=handle_speech_to_text, daemon=True).start()),
+        pystray.MenuItem("---", lambda: None, enabled=False),
+        pystray.MenuItem("Ayarlar", handle_settings),
         pystray.MenuItem("---", lambda: None, enabled=False),
         pystray.MenuItem(f"Kısayollar:", lambda: None, enabled=False),
         pystray.MenuItem(f"  {settings['hotkey'].upper()}: Karakter/AI", lambda: None, enabled=False),
