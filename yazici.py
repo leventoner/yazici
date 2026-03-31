@@ -435,13 +435,18 @@ class SelectionManager:
 
     def check_and_show_menu(self, x, y):
         # We need to see if there is actually selected text.
-        # How? Simulate Ctrl+C and see if clipboard is not empty or changed.
         
         # Save old clipboard to be polite
         try:
             old_clip = pyperclip.paste()
         except:
             old_clip = ""
+
+        # Clear the clipboard to detect if explicitly new text is copied
+        try:
+            pyperclip.copy("")
+        except:
+            pass
 
         # Request Copy
         keyboard.press_and_release('ctrl+c')
@@ -452,19 +457,17 @@ class SelectionManager:
         except:
             current_clip = ""
 
-        # If selection happened, show menu
-        # (We assume if clipboard is NOT empty and potentially different, or just NOT empty)
-        # To avoid showing it on empty clicks, we check if current_clip has content.
+        # If selection happened and text is present, show menu
         if current_clip and current_clip.strip():
             duration = settings.get("floating_menu_duration", 10)
             show_floating_menu(x, y, self.menu_callback, theme_color=THEME_COLOR, duration=duration)
         else:
-            # Restore if it was just a random click that didn't select anything
-            # But wait, if text was already in clipboard from before, this might be tricky.
-            # Best way: Check if current_clip is different from old_clip?
-            # No, user might select the same text again.
-            # Usually, if Ctrl+C was sent and we have text, it's a good indicator.
-            pass
+            # Restore the old clipboard since no text was selected (e.g., double clicking a folder)
+            if old_clip:
+                try:
+                    pyperclip.copy(old_clip)
+                except:
+                    pass
 
     def menu_callback(self, action_type):
         if action_type == "fix":

@@ -61,7 +61,7 @@ class FloatingMenu:
         self.menu.geometry(f"+{x}+{y + 20}")
         
         # Frame
-        self.frame = tk.Frame(self.menu, bg='#2c3e50', padx=5, pady=5)
+        self.frame = tk.Frame(self.menu, bg='#2c3e50', padx=2, pady=2)
         self.frame.pack()
         
         # Geometry tracking
@@ -88,10 +88,10 @@ class FloatingMenu:
             fg='white', 
             activebackground=self.theme_color,
             activeforeground='white',
-            font=('Segoe UI Emoji', 14),
+            font=('Segoe UI Emoji', 11),
             relief='flat',
-            padx=10,
-            pady=5,
+            padx=5,
+            pady=2,
             command=lambda: self._handle_click(action_type)
         )
         btn.grid(row=0, column=column, padx=2)
