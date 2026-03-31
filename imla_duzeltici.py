@@ -16,7 +16,7 @@ from scipy.io import wavfile
 import numpy as np
 import io
 from pynput import mouse
-from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu, show_notification
+from ui.floating_menu import show_floating_menu, close_active_menu, is_click_on_menu, show_notification, is_menu_active
 import subprocess
 
 # Fix DPI scaling on Windows
@@ -378,6 +378,11 @@ def on_hotkey_pressed():
     timer = threading.Timer(COOLDOWN, process_action)
     timer.start()
 
+def handle_deletion_key():
+    if is_menu_active():
+        # Text deletion happened, close the floating menu
+        close_active_menu()
+
 # --- Selection Detection Logic (Floating Menu Trigger) ---
 
 class SelectionManager:
@@ -526,6 +531,12 @@ def start_listener():
         keyboard.add_hotkey(settings['hotkey'], on_hotkey_pressed, suppress=False)
         # Add the Speech-to-Text hotkey
         keyboard.add_hotkey(settings['stt_hotkey'], lambda: threading.Thread(target=handle_speech_to_text, daemon=True).start(), suppress=False)
+        
+        # Listen for delete/backspace/escape to close the floating menu
+        keyboard.on_press_key("backspace", lambda _: handle_deletion_key(), suppress=False)
+        keyboard.on_press_key("delete", lambda _: handle_deletion_key(), suppress=False)
+        keyboard.on_press_key("esc", lambda _: handle_deletion_key(), suppress=False)
+        
         while is_running:
             time.sleep(1)
     except Exception as e:

@@ -242,6 +242,10 @@ def is_click_on_menu(x, y):
     except:
         return False
 
+def is_menu_active():
+    global active_menu
+    return active_menu is not None
+
 def show_floating_menu(x, y, callback, theme_color='#1a237e', duration=10.0):
     global active_menu
     _ensure_ui_running()
